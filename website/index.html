@@ -1,0 +1,242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Cloth-Sim</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 20</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Richard Wang, Andrew Chang, CS184-SP22</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p> In this project, we created a simulation to model the behavior of cloth. We used a spring and mass system in order to model the behavior of the cloth and applied Newton's laws of motion in accordance with both the gravitational force as well as the elastic force in order to model the behavior of the cloth acted upon by natural forces. We used Verlet integration in order to create simulations of the cloth under numerous circumstances. Next we implemented collisions of the cloth with other objects as well as self-collisions, and finally introduced various shaders to model light interacting with our material. </p>
+
+<h2 align="middle">Part I: Masses and Springs</h2>
+
+<p> The first step of this procedure was to build the mesh of point masses and springs. First, we created a mesh of uniformly distributed point masses inserted into our grid in row major format and ensuring certain masses were getting pinned. This means the resulting index in the 1D array was (x + width * y). </p>
+
+   <div align="middle">
+      <table style="width=100%">
+         <tr>
+          <td>
+        	<img src="pt1-1.png" align="middle" width="400px" />
+        	<figcaption align="middle">3D Mesh</figcaption>
+        	</td>
+          <td>
+        	<img src="pt1_shearingonly.png" align="middle" width="400px" />
+        	<figcaption align="middle">Shearing Only.</figcaption>
+        	</td>
+          </tr>
+          <tr>
+        <td>
+        <img src="pt1_structuralbending.png" align="middle" width="400px" />
+        <figcaption align="middle">Structural and Bending Only.</figcaption>
+        </td>
+        <td>
+        <img src="pt1_all3.png" align="middle" width="400px" />
+        <figcaption align="middle">All 3 Constraints.</figcaption>
+        </td>
+       </tr>
+	</table>
+	</div>
+<h2 align="middle">Part II: Simulation with Numerical Integration</h2>
+
+	<p> For this section of the project, there are 3 different attributes that we can adjust: spring constant k, density, and damping. We see that changing the value of ks changes the stiffness of fabric, a low k is more malleable, whereas a high k means the fabric is more stiff. Adjusting the density also changes the stiffness of the material, but inversely to the spring constant. A high density makes the fabric less stiff and a low density makes the fabric more stiff. Low damping decreases the resistance of the cloth to motion, so it essentially flops everywhere. Whereas high dampling causes the cloth move slowly and drop slowly. </p>
+
+   <div align="middle">
+      <table style="width=100%">
+         <tr>
+          <td>
+        	<img src="pt2-ks5000-d100.png" align="middle" width="300px" />
+        	<figcaption align="middle">ks: 5000, density: 100</figcaption>
+        	</td>
+          <td>
+        	<img src="pt2-ks5000-d500.png" align="middle" width="300px" />
+        	<figcaption align="middle">ks: 5000, density: 500</figcaption>
+        	</td>
+        	<td>
+        <img src="pt2-ks5000-d1000.png" align="middle" width="300px" />
+        <figcaption align="middle">ks: 5000, density: 1000</figcaption>
+        </td>
+    </tr>
+    <tr>
+          <td>
+        	<img src="pt2-ks1-d15.png" align="middle" width="300px" />
+        	<figcaption align="middle">ks: 1, density: 15</figcaption>
+        	</td>
+          <td>
+        	<img src="pt2-ks100-d15.png" align="middle" width="300px" />
+        	<figcaption align="middle">ks: 100, density: 15</figcaption>
+        	</td>
+        	<td>
+        <img src="pt2-ks1000-d15.png" align="middle" width="300px" />
+        <figcaption align="middle">ks: 1000, density: 15</figcaption>
+        </td>
+    </tr>
+    <tr>
+          <td>
+        	<img src="pt2-damping0.png" align="middle" width="300px" />
+        	<figcaption align="middle">Damping: 0</figcaption>
+         </td>
+          <td>
+        	<img src="pt2-damping0.2.png" align="middle" width="300px" />
+        	<figcaption align="middle">Damping: 0.2</figcaption>
+         </td>
+          <td>
+        	<img src="pt2-damping1.png" align="middle" width="300px"/>
+        	<figcaption align="middle">Damping: 1</figcaption>
+          </td>
+    </tr>
+</table>
+</div>
+
+   <div align="middle">
+      <table style="width=100%">
+      	<tr>
+        <td>
+        <img src="pt2-4pinned.png" align="middle" width="400px" />
+        <figcaption align="middle">Cloth with 4 Pinned Points</figcaption>
+        </td>
+       </tr>
+	</table>
+	</div>
+
+
+<h2 align="middle">Part III: Collisions</h2>
+
+<p> For this section, we handled collisions of the cloth with a sphere and plane. For intersection of iether object, we utilized the tests that we used in previous projects. To test whether a point is inside a spehre, we saw if the point satisfied the sphere equation (p - o)^2 <= R^2. If it is, we projected this point onto the surface of the sphere and translated the last position of the point to this position scaled by some factor due to friction. A simiilar logic was applied to collision with a plane, however the test was whether or not the point was above or below the line. To do this, we calculated the dot product between the vector between our point and a point on the plane and the normal of the plane. For planes, if the point was below our plane, we would translate it to a point that was above the plane by some offset. <p>
+
+   <div align="middle">
+      <table style="width=100%">
+         <tr>
+          <td>
+        	<img src="pt3-ks5000.png" align="middle" width="400px" />
+        	<figcaption align="middle">ks = 5000</figcaption>
+        	</td>
+          <td>
+        	<img src="p3-ks50000.png" align="middle" width="400px" />
+        	<figcaption align="middle">ks = 50000.</figcaption>
+        	</td>
+          </tr>
+          <tr>
+        <td>
+        <img src="pt3-ks500.png" align="middle" width="400px" />
+        <figcaption align="middle">ks = 500.</figcaption>
+        </td>
+        <td>
+        <img src="pt3-plane.png" align="middle" width="400px" />
+        <figcaption align="middle">Plane Collision</figcaption>
+        </td>
+       </tr>
+	</table>
+	</div>
+
+	<p> Observing the difference that ks has on each cloth, we can see that the higher the ks the more stiff the material and the less it conforms to the sphere, whereas a lower ks the more the cloth will drape around the sphere. </p>
+
+<h2 align="middle">Part IV: Self-Collisions</h2>
+
+
+   <div align="middle">
+      <table style="width=100%">
+         <tr>
+          <td>
+        	<img src="pt4-1.png" align="middle" width="400px" />
+        	<figcaption align="middle">Self-Collision 1</figcaption>
+        	</td>
+          <td>
+        	<img src="pt4-2.png" align="middle" width="400px" />
+        	<figcaption align="middle">Self-Collision 2</figcaption>
+        	</td>
+          </tr>
+          <tr>
+          <td>
+        <img src="pt4-3.png" align="middle" width="400px" />
+        <figcaption align="middle">Self-Collision 3</figcaption>
+        </td>
+        <td>
+        <img src="pt4-4.png" align="middle" width="400px" />
+        <figcaption align="middle">Self-Collision 4</figcaption>
+        </td>
+       </tr>
+	</table>
+	</div>
+
+	<p>
+		We see that changing the density changes the number of creases in our mesh, with a higher density allowing for more creases in our cloth. Adjusting the ks changes the stiffness of the cloth, where a higher ks creates a stiffer, less bendable cloth, whereas a smaller ks makes the cloth "softer". 
+	</p>
+
+
+<h2 align="middle">Part V: Shaders</h2>
+<p> A shader is a program that runs in parallel on the GPU that allows us to apply color and shade objects. In our project, we dealt with two different types of shaders: vertex shaders which modifies attributes like their positions and normals, and fragment shaders which take geometric attributes (normal, distance) calculated by the vertex shader and outputs a color. 
+</p>
+
+<p> The Blinn-Phong is a vertex shader model that adds onto diffuse shading by including ambient light and specular reflection components. Ambient light is a general term added to every vertex uniformly. Specular reflection introduces a term that is proportional to cosine between the angle bisector between the incoming light and the camera light to some power. </p>
+
+  <div align="middle">
+      <table style="width=100%">
+         <tr>
+          <td>
+        	<img src="pt5_clothbump.png" align="middle" width="400px" />
+        	<figcaption align="middle">Bump Cloth</figcaption>
+        	</td>
+          <td>
+        	<img src="pt5-displacement.png" align="middle" width="400px" />
+        	<figcaption align="middle">Displacement Sphere</figcaption>
+          </td>
+         </tr>
+          <tr>
+       	<tr>
+          <td>
+        	<img src="pt5_mirrorcloth.png" align="middle" width="400px" />
+        	<figcaption align="middle">Mirror Cloth</figcaption>
+        	</td>
+          <td>
+        	<img src="pt5_mirrorsphere.png" align="middle" width="400px" />
+        	<figcaption align="middle">Mirror Sphere</figcaption>
+          </td>
+         </tr>
+         <tr>
+          <td>
+        	<img src="pt5-o16-a16.png" align="middle" width="400px" />
+        	<figcaption align="middle">-o 16 -a 16</figcaption>
+          </td>
+            <td>
+        	<img src="pt5-o128-a128.png" align="middle" width="400px" />
+        	<figcaption align="middle">-o 128 -a 128 </figcaption>
+        	</td>
+          </tr>
+          <tr>
+          	 <td>
+        	<img src="pt5_customtex.png" align="middle" width="400px" />
+        	<figcaption align="middle">Custom Texture </figcaption>
+        	</td>
+          </tr>
+
+	</table>
+	</div>
+
+</body>
+</html>
